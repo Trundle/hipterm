@@ -1,0 +1,29 @@
+# Byte-compiled modules
+__pycache__/
+*.py[co]
+
+# C extensions
+*.pyd
+*.so
+
+# Distribution / packaging
+.Python
+env/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Tox
+.tox/
+
+static/*.min.js
