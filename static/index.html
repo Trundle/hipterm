@@ -1,16 +1,16 @@
 <!DOCTYPE html>
 <html>
+<head>
+  <meta http-equiv="Content-Type" content="text/html;charset=utf-8" />
+</head>
 <body>
 <div><pre id="scrn">Not connected yet</pre></div>
 <script type="text/javascript" src="/jquery-2.1.3.min.js"></script>
+<script type="text/jsx" src="term.js"></script>
 <script type="text/javascript">
 var connected = false
-    , ws = new WebSocket("ws://localhost:8082/")
-    , fileReader = new FileReader();
+    , ws = new WebSocket("ws://localhost:8082/");
 
-$(fileReader).on("loadend", function() {
-   $screen.html(this.result);
-});
 $(document).keypress(function (event) {
     if (connected) {
         ws.send(JSON.stringify({event: "keypress", key: event.key, ctrl: event.ctrlKey}));
@@ -21,7 +21,8 @@ $(document).keypress(function (event) {
 var $screen = $("#scrn");
 ws.onopen = function (event) { connected = true; };
 ws.onmessage = function (event) {
-    fileReader.readAsBinaryString(event.data);
+console.log(event.data);
+    $screen.html(event.data);
 };
 </script>
 </body>

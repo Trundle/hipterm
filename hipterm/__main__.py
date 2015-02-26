@@ -1,5 +1,6 @@
 import argparse
 import asyncio
+import html
 import json
 import os
 import pty
@@ -35,6 +36,16 @@ class TermApp(web.Application):
         return web.Response(body=body, content_type="text/html")
 
 
+class NoCharsetScreen(pyte.Screen):
+    def reset(self):
+        super().reset()
+        self.g0_charset = []
+        self.g1_charset = []
+
+
+class Screen(NoCharsetScreen, pyte.DiffScreen):
+    pass
+
 
 class Term:
     BUFFER_SIZE = 8192
@@ -43,7 +54,7 @@ class Term:
         self._fd = fd
         self._transport = transport
         self._loop = loop
-        self._screen = pyte.Screen(80, 24)
+        self._screen = Screen(80, 50)
         self._stream = pyte.ByteStream()
         self._stream.attach(self._screen)
         self._something_happened = asyncio.Event(loop=loop)
@@ -53,7 +64,7 @@ class Term:
         return "\n".join(self._screen.display)
 
     def get_display_as_html(self):
-        output = bytearray()
+        output = []
         for line in self._screen.buffer:
             for char in line:
                 styles = []
@@ -66,14 +77,14 @@ class Term:
                 if char.italics:
                     styles.append("font-style:italic")
                 if styles:
-                    output.extend(b'<span style="')
-                    output.extend(";".join(styles).encode("ascii"))
-                    output.extend(b'">')
-                output.extend(char.data.encode(ENCODING))
+                    output.append('<span style="')
+                    output.append(";".join(styles))
+                    output.append('">')
+                output.append(html.escape(char.data))
                 if styles:
-                    output.extend(b"</span>")
-            output.append(0xa)
-        return bytes(output)
+                    output.append("</span>")
+            output.append("\n")
+        return "".join(output)
 
     @asyncio.coroutine
     def next_event(self):
@@ -110,13 +121,18 @@ def _execute_shell(loop):
 def _translate_key(event):
     key = event["key"]
     if event["ctrl"]:
-        if key == "d":
-            return "\x04"
-        return ""
+        return {
+            "c": "\x03",
+            "d": "\x04",
+            "l": "\x0c",
+        }.get(key, "")
     else:
         return {
             "Backspace": "\x7f",
+            "Down": "\x1b[B",
             "Enter": "\n",
+            "Left": "\x1b[D",
+            "Right": "\x1b[C",
             "Up": "\x1b[A",
         }.get(key, key)
 
@@ -136,6 +152,8 @@ def term_handler(websocket, path):
             return_when=asyncio.FIRST_COMPLETED)
         for task in done:
             if task is term_task:
+                # XXX
+                term._screen.dirty.clear()
                 yield from websocket.send(term.get_display_as_html())
             else:
                 event = json.loads(task.result())
