@@ -1,6 +1,5 @@
 import argparse
 import asyncio
-import html
 import json
 import os
 import pty
@@ -33,7 +32,16 @@ class TermApp(web.Application):
                 body = infile.read()
         except FileNotFoundError:
             raise web.HTTPNotFound() from None
-        return web.Response(body=body, content_type="text/html")
+        content_type = TermApp._get_content_type(name)
+        return web.Response(body=body, content_type=content_type)
+
+    @staticmethod
+    def _get_content_type(name):
+        if name.endswith(".html"):
+            return "text/html"
+        elif name.endswith(".css"):
+            return "text/css"
+        return "text/plain"
 
 
 class NoCharsetScreen(pyte.Screen):
@@ -63,28 +71,8 @@ class Term:
     def get_display(self):
         return "\n".join(self._screen.display)
 
-    def get_display_as_html(self):
-        output = []
-        for line in self._screen.buffer:
-            for char in line:
-                styles = []
-                if char.fg != "default":
-                    styles.append("color:{};".format(char.fg))
-                if char.bg != "default":
-                    styles.append("background-color:{};".format(char.bg))
-                if char.bold:
-                    styles.append("font-weight:bold")
-                if char.italics:
-                    styles.append("font-style:italic")
-                if styles:
-                    output.append('<span style="')
-                    output.append(";".join(styles))
-                    output.append('">')
-                output.append(html.escape(char.data))
-                if styles:
-                    output.append("</span>")
-            output.append("\n")
-        return "".join(output)
+    def get_raw_display(self):
+        return self._screen.buffer
 
     @asyncio.coroutine
     def next_event(self):
@@ -133,6 +121,7 @@ def _translate_key(event):
             "Enter": "\n",
             "Left": "\x1b[D",
             "Right": "\x1b[C",
+            "Tab": "\t",
             "Up": "\x1b[A",
         }.get(key, key)
 
@@ -154,7 +143,7 @@ def term_handler(websocket, path):
             if task is term_task:
                 # XXX
                 term._screen.dirty.clear()
-                yield from websocket.send(term.get_display_as_html())
+                yield from websocket.send(json.dumps(term.get_raw_display()))
             else:
                 event = json.loads(task.result())
                 term.write(_translate_key(event).encode(ENCODING))
