@@ -1,7 +1,3 @@
-var flatten = function (A) {
-  return [].concat.apply([], A);
-};
-
 var Screen = React.createClass({
   getInitialState: function () {
     return {dirty: []};

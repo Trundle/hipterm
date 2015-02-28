@@ -74,6 +74,10 @@ class Term:
     def get_raw_display(self):
         return self._screen.buffer
 
+    def pop_dirty_lines(self):
+        (dirty_lines, self._screen.dirty) = (self._screen.dirty, set())
+        return dirty_lines
+
     @asyncio.coroutine
     def next_event(self):
         yield from self._something_happened.wait()
@@ -141,12 +145,11 @@ def term_handler(websocket, path):
             return_when=asyncio.FIRST_COMPLETED)
         for task in done:
             if task is term_task:
-                # XXX
                 display = term.get_raw_display()
                 lines = {
-                    lineno: display[lineno] for lineno in term._screen.dirty
+                    lineno: display[lineno]
+                    for lineno in term.pop_dirty_lines()
                 }
-                term._screen.dirty.clear()
                 yield from websocket.send(json.dumps(lines))
             else:
                 event = json.loads(task.result())
