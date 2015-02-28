@@ -1,3 +1,9 @@
+var DATA = 0,
+    FG = 1,
+    BG = 2,
+    BOLD = 3,
+    ITALICS = 4;
+
 var Screen = React.createClass({
   getInitialState: function () {
     return {dirty: []};
@@ -43,11 +49,33 @@ var Screen = React.createClass({
 });
 
 
+var groupChars = function (chars) {
+  if (!chars.length) {
+    return [];
+  }
+
+  var grouped = []
+    , last = chars[DATA];
+  for (var i = 1; i < chars.length; ++i) {
+    var char = chars[i];
+    if (char[FG] == last[FG] && char[BG] == last[BG]) {
+      last[DATA] += char[DATA];
+    } else {
+      grouped.push(last);
+      last = char;
+    }
+  }
+  grouped.push(last);
+  return grouped;
+};
+
+
 var Line = React.createClass({
   render: function () {
-    var charNodes = this.props.chars.map(function (char, col) {
-      return <Char key={col} char={char} />
-    });
+    var charNodes = groupChars(this.props.chars)
+      .map(function (char, col) {
+        return <Char key={col+"-"+char[DATA].length} char={char} />
+      });
     return <div>{charNodes}</div>
   },
 
@@ -58,13 +86,8 @@ var Line = React.createClass({
 
 var Char = React.createClass({
   render: function () {
-    var DATA = 0,
-        FG = 1,
-        BG = 2,
-        BOLD = 3,
-        ITALICS = 4,
-        char = this.props.char;
-    var classes = [];
+    var char = this.props.char
+      , classes = [];
     if (char[FG] != "default") {
       classes.push("color-" + char[FG]);
     }
