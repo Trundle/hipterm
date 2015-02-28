@@ -4,7 +4,7 @@ var flatten = function (A) {
 
 var Screen = React.createClass({
   getInitialState: function () {
-    return {buffer: []};
+    return {dirty: []};
   },
 
   componentDidMount: function () {
@@ -17,7 +17,10 @@ var Screen = React.createClass({
       connected = false;
     };
     ws.onmessage = function (event) {
-      this.setState({buffer: JSON.parse(event.data)});
+      var lines = JSON.parse(event.data),
+          dirty = Object.keys(lines);
+      lines.dirty = dirty;
+      this.setState(lines);
     }.bind(this);
     $(document).keypress(function (event) {
       if (connected) {
@@ -29,14 +32,31 @@ var Screen = React.createClass({
   },
 
   render: function () {
-    var lineNodes = this.state.buffer.map(function (line, lineno) {
-      return line.concat(["\n"]).map(function (char, col) {
-        return <Char key={lineno + "-" + col} char={char} />
+    var dirty = this.state.dirty,
+        state = this.state;
+    var lines = Object.keys(state)
+      .filter(function (element) { return element !== "dirty"; })
+      .map(function (lineno) {
+        var line = state[lineno];
+        return <Line key={lineno} dirty={dirty.indexOf(lineno) !== -1} chars={line} />
       });
-    });
     return (
-      <div>{flatten(lineNodes)}</div>
+      <div>{lines}</div>
     );
+  }
+});
+
+
+var Line = React.createClass({
+  render: function () {
+    var charNodes = this.props.chars.map(function (char, col) {
+      return <Char key={col} char={char} />
+    });
+    return <div>{charNodes}</div>
+  },
+
+  shouldComponentUpdate: function(nextProps, nextState) {
+    return nextProps.dirty;
   }
 });
 

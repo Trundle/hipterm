@@ -142,8 +142,12 @@ def term_handler(websocket, path):
         for task in done:
             if task is term_task:
                 # XXX
+                display = term.get_raw_display()
+                lines = {
+                    lineno: display[lineno] for lineno in term._screen.dirty
+                }
                 term._screen.dirty.clear()
-                yield from websocket.send(json.dumps(term.get_raw_display()))
+                yield from websocket.send(json.dumps(lines))
             else:
                 event = json.loads(task.result())
                 term.write(_translate_key(event).encode(ENCODING))
