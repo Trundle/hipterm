@@ -125,9 +125,13 @@ def _translate_key(event):
     key = event["key"]
     if event["ctrl"]:
         return {
+            "a": "\x01",
             "c": "\x03",
             "d": "\x04",
+            "g": "\x07",
+            "i": "\t",
             "l": "\x0c",
+            "r": "\x12",
         }.get(key, "")
     else:
         return {
