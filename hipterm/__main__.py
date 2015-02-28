@@ -1,8 +1,11 @@
 import argparse
 import asyncio
+import fcntl
 import json
 import os
 import pty
+import struct
+import termios
 
 import pyte
 import websockets
@@ -12,6 +15,8 @@ from aiohttp import web
 PORT = 8081
 WEBSOCKETS_PORT = 8082
 ENCODING = "utf-8"
+ROWS = 50
+COLUMNS = 100
 
 
 class TermApp(web.Application):
@@ -62,7 +67,7 @@ class Term:
         self._fd = fd
         self._transport = transport
         self._loop = loop
-        self._screen = Screen(80, 50)
+        self._screen = Screen(COLUMNS, ROWS)
         self._stream = pyte.ByteStream()
         self._stream.attach(self._screen)
         self._something_happened = asyncio.Event(loop=loop)
@@ -92,6 +97,11 @@ class Term:
         self._something_happened.set()
 
 
+def _set_term_size(fd, rows, columns):
+    data = struct.pack("HHHH", rows, columns, 0, 0)
+    fcntl.ioctl(fd, termios.TIOCSWINSZ, data)
+
+
 @asyncio.coroutine
 def _execute_shell(loop):
     # XXX loop argument
@@ -100,6 +110,7 @@ def _execute_shell(loop):
     environ = os.environ.copy()
     environ["TERM"] = "linux"
     (master, slave) = pty.openpty()
+    _set_term_size(master, ROWS, COLUMNS)
     (transport, _) = yield from loop.subprocess_exec(
         asyncio.SubprocessProtocol,
         shell,
